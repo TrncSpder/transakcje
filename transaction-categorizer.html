@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klasyfikator Transakcji</title>
+<style>
+  :root {
+    --bg:         #0a0a0b;
+    --bg2:        #111113;
+    --bg3:        #19191d;
+    --bg4:        #222228;
+    --border:     #27272e;
+    --border2:    #38383f;
+    --text:       #f0ede6;
+    --text2:      #8a8578;
+    --text3:      #4a4640;
+    --gold:       #a8894a;
+    --gold2:      #c4a868;
+    --gold3:      #d4b87a;
+    --gold-bg:    #0f0d08;
+    --gold-b:     #221e10;
+    --gold-glow:  #d4a84320;
+    --green:      #2dbe82;
+    --green-bg:   #041610;
+    --green-b:    #0a3022;
+    --green-glow: #2dbe8220;
+    --red:        #e05252;
+    --red-bg:     #130808;
+    --red-b:      #3a1212;
+    --red-glow:   #e0525218;
+    --teal:       #4ecdc4;
+    --purple:     #b89aff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 36px 24px 60px;
+    background-image:
+      radial-gradient(ellipse 70% 40% at 50% 0%, #d4a84312 0%, transparent 55%),
+      radial-gradient(ellipse 30% 25% at 15% 60%, #d4a84306 0%, transparent 50%),
+      radial-gradient(ellipse 25% 20% at 85% 30%, #2dbe8206 0%, transparent 50%);
+  }
+
+  .container { max-width: 1000px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center; gap: 18px;
+    margin-bottom: 40px;
+  }
+  .header-logo {
+    position: relative; flex-shrink: 0;
+    width: 52px; height: 52px;
+  }
+  .header-logo svg { width: 52px; height: 52px; }
+  .header-text h1 {
+    font-size: 1.5rem; font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--gold3) 0%, var(--gold) 50%, #c8922a 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-text p { font-size: 0.8rem; color: var(--text3); margin-top: 3px; letter-spacing: 0.02em; }
+  .header-divider {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--gold-b) 0%, transparent 100%);
+    margin-left: 8px;
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex; align-items: flex-end;
+    margin-bottom: -1px; position: relative; z-index: 1;
+    gap: 3px;
+  }
+  .tab {
+    display: flex; align-items: center; gap: 9px;
+    padding: 12px 22px 13px;
+    font-size: 0.84rem; font-weight: 500;
+    color: var(--text3);
+    background: #0e0e10;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+    position: relative;
+    font-family: inherit;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+  }
+  .tab .tab-ico { display: flex; align-items: center; opacity: 0.5; transition: opacity 0.2s; }
+  .tab:hover:not(.tab-active) { color: var(--text2); background: #131316; border-color: var(--border2); }
+  .tab:hover:not(.tab-active) .tab-ico { opacity: 0.7; }
+  .tab-active {
+    background: var(--bg2);
+    color: var(--gold2);
+    font-weight: 700;
+    border-color: var(--gold-b);
+    border-bottom: 1px solid var(--bg2);
+    margin-bottom: -1px;
+    padding-bottom: 14px;
+  }
+  .tab-active .tab-ico { opacity: 1; }
+  .tab-active::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--gold) 0%, var(--gold3) 100%);
+    border-radius: 10px 10px 0 0;
+  }
+  .tab-active::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; right: 0; height: 2px;
+    background: var(--bg2);
+  }
+  .tab-badge {
+    font-size: 0.62rem; font-weight: 800;
+    background: var(--gold); color: #0a0806;
+    border-radius: 8px; padding: 1px 6px;
+    display: none; letter-spacing: 0;
+  }
+  .tab-badge.visible { display: inline-block; }
+
+  /* ── Panel ── */
+  .tab-panel {
+    display: none;
+    background: var(--bg2);
+    border: 1px solid var(--gold-b);
+    border-radius: 0 12px 12px 12px;
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tab-panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, var(--gold) 0%, transparent 60%);
+    opacity: 0.4;
+  }
+  .tab-panel.active { display: block; }
+
+  /* ── Section label ── */
+  .section-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gold);
+    margin-bottom: 20px; opacity: 0.7;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--gold-b), transparent);
+  }
+
+  /* ── Inputs ── */
+  label {
+    display: block; font-size: 0.79rem; font-weight: 500;
+    color: var(--text2); margin-bottom: 7px;
+  }
+  input[type="password"], textarea {
+    width: 100%;
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 0.875rem;
+    font-family: inherit;
+    background: var(--bg3);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  input[type="password"]:focus, textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-glow);
+    background: var(--bg4);
+  }
+  textarea { resize: vertical; min-height: 160px; line-height: 1.65; }
+
+  /* ── API key fields ── */
+  .api-key-card {
+    background: var(--gold-bg);
+    border: 1.5px solid var(--gold-b);
+    border-radius: 14px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .api-key-card:hover {
+    border-color: var(--gold);
+    box-shadow: 0 0 24px var(--gold-glow), inset 0 0 30px var(--gold-glow);
+  }
+  .api-key-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, var(--gold) 0%, transparent 70%);
+    opacity: 0.5;
+  }
+  .api-key-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .api-key-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--gold-b), #3d2e0a);
+    border: 1px solid var(--gold-b);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .api-key-title {
+    font-size: 0.82rem; font-weight: 700;
+    color: var(--gold2); letter-spacing: 0.02em;
+  }
+  .api-key-desc { font-size: 0.72rem; color: var(--text3); margin-top: 1px; }
+  .api-key-card input[type="password"] {
+    background: #0e0b03;
+    border-color: var(--gold-b);
+    color: var(--gold3);
+    font-size: 0.88rem; letter-spacing: 0.04em;
+  }
+  .api-key-card input[type="password"]:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-glow);
+    background: #130f04;
+  }
+  .api-key-card input[type="password"]::placeholder { color: #4a3a12; }
+
+  /* ── Model buttons ── */
+  .model-btn-group { display: flex; flex-direction: column; gap: 7px; }
+  .model-btn {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    background: var(--bg3);
+    color: var(--text2);
+    font-size: 0.83rem; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.15s; text-align: left;
+  }
+  .model-btn:hover { border-color: var(--gold-b); color: var(--text); background: var(--bg4); }
+  .model-btn.active {
+    border-color: var(--gold);
+    background: var(--gold-bg);
+    color: var(--gold2);
+    box-shadow: 0 0 0 1px var(--gold-b), inset 0 0 20px var(--gold-glow);
+  }
+  .model-tag {
+    font-size: 0.67rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 5px; white-space: nowrap; letter-spacing: 0.03em;
+  }
+  .model-btn.active .model-tag { background: var(--gold); color: #0a0806; }
+  .model-btn:not(.active) .model-tag { background: var(--bg4); color: var(--text3); }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, #b8882a 0%, var(--gold) 50%, var(--gold3) 100%);
+    color: #0a0806;
+    border: none; border-radius: 10px;
+    padding: 12px 26px;
+    font-size: 0.875rem; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    transition: opacity 0.15s, box-shadow 0.15s, transform 0.1s;
+    box-shadow: 0 4px 20px #d4a84340, 0 1px 0 #ffd87a40 inset;
+    letter-spacing: 0.01em;
+  }
+  .btn-primary:hover { opacity: 0.92; box-shadow: 0 6px 28px #d4a84355; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { background: var(--bg4); color: var(--text3); box-shadow: none; cursor: not-allowed; transform: none; }
+
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: transparent; color: var(--text2);
+    border: 1px solid var(--border2); border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 0.875rem; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn-ghost:hover { background: var(--bg4); color: var(--text); border-color: var(--gold-b); }
+
+  .status {
+    font-size: 0.82rem; color: var(--text3);
+    display: flex; align-items: center; gap: 7px;
+  }
+
+  /* Thinking dots */
+  .dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100%{ opacity:0.2; transform:scale(0.8); } 40%{ opacity:1; transform:scale(1.1); } }
+
+  /* ── Metrics ── */
+  .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .metric {
+    border-radius: 14px; padding: 20px;
+    border: 1px solid; position: relative; overflow: hidden;
+  }
+  .metric::after {
+    content: ''; position: absolute;
+    top: -20px; right: -20px;
+    width: 80px; height: 80px; border-radius: 50%;
+    opacity: 0.06; pointer-events: none;
+  }
+  .metric.income { background: var(--green-bg); border-color: var(--green-b); box-shadow: inset 0 0 40px var(--green-glow); }
+  .metric.income::after { background: var(--green); }
+  .metric.outcome { background: var(--red-bg); border-color: var(--red-b); box-shadow: inset 0 0 40px var(--red-glow); }
+  .metric.outcome::after { background: var(--red); }
+  .metric.balance { background: var(--gold-bg); border-color: var(--gold-b); box-shadow: inset 0 0 40px var(--gold-glow); }
+  .metric.balance::after { background: var(--gold); }
+  .metric-icon { width: 28px; height: 28px; margin-bottom: 12px; opacity: 0.7; }
+  .metric-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .metric.income .metric-label { color: var(--green); }
+  .metric.outcome .metric-label { color: var(--red); }
+  .metric.balance .metric-label { color: var(--gold); }
+  .metric-value { font-size: 1.65rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .metric.income .metric-value { color: var(--green); }
+  .metric.outcome .metric-value { color: var(--red); }
+  .metric.balance .metric-value { color: var(--gold2); }
+  .metric-sub { font-size: 0.78rem; margin-top: 6px; font-weight: 600; }
+  .metric.income .metric-sub { color: var(--green); }
+  .metric.outcome .metric-sub { color: var(--red); }
+  .metric.balance .metric-sub { color: var(--gold); }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  thead th {
+    text-align: left; padding: 9px 12px;
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text3); border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #ffffff03; }
+  tbody td { padding: 10px 12px; vertical-align: middle; }
+  tfoot td { padding: 10px 12px; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    border-radius: 6px; padding: 3px 9px;
+    font-size: 0.73rem; font-weight: 600;
+    white-space: nowrap; border: 1px solid;
+  }
+  .badge-group    { background: #d4a84312; color: var(--gold2);   border-color: #d4a84330; }
+  .badge-sub      { background: #b89aff12; color: var(--purple);  border-color: #b89aff28; }
+  .badge-merchant { background: #4ecdc412; color: var(--teal);    border-color: #4ecdc430; }
+
+  /* ── Confidence bar ── */
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar-bg { flex: 1; height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--gold), var(--gold3)); transition: width 0.4s ease; }
+  .bar-pct { font-size: 0.73rem; color: var(--text3); min-width: 28px; text-align: right; }
+
+  .amount-in  { color: var(--green); font-weight: 700; }
+  .amount-out { color: var(--text2); font-weight: 500; }
+
+  /* ── Error ── */
+  .error-box {
+    background: var(--red-bg); border: 1px solid var(--red-b);
+    color: var(--red); border-radius: 12px; padding: 14px 18px;
+    font-size: 0.85rem; display: flex; align-items: center; gap: 10px;
+  }
+
+  /* ── Details ── */
+  details summary {
+    cursor: pointer; font-size: 0.78rem; color: var(--text3);
+    user-select: none; margin-top: 10px; list-style: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  details summary::before { content: '▸'; color: var(--gold); opacity: 0.5; }
+  details[open] summary::before { content: '▾'; }
+
+  @media (max-width: 680px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .tab { padding: 10px 14px; font-size: 0.78rem; }
+    .tab-panel { padding: 20px; }
+    .header-divider { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">
+      <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="hbg" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#1e1608"/><stop offset="100%" stop-color="#0c0905"/>
+          </linearGradient>
+          <linearGradient id="hring" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#f0c060"/><stop offset="100%" stop-color="#b8882a"/>
+          </linearGradient>
+        </defs>
+        <rect width="52" height="52" rx="14" fill="url(#hbg)" stroke="#2e2208" stroke-width="1"/>
+        <circle cx="22" cy="22" r="10" stroke="url(#hring)" stroke-width="1.8" fill="none"/>
+        <text x="22" y="27" text-anchor="middle" font-size="12" font-weight="900" fill="#f0c060" font-family="system-ui,sans-serif">$</text>
+        <circle cx="32" cy="32" r="7" fill="#0e0c06" stroke="#2e2208" stroke-width="1.2"/>
+        <circle cx="32" cy="32" r="5.2" stroke="#d4a843" stroke-width="1.2" fill="none" opacity="0.7"/>
+        <text x="32" y="35.5" text-anchor="middle" font-size="7" font-weight="800" fill="#d4a843" font-family="system-ui,sans-serif">€</text>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>Klasyfikator transakcji</h1>
+      <p>Analiza wydatków · Claude normalizuje · Jina kategoryzuje</p>
+    </div>
+    <div class="header-divider"></div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabs">
+    <button class="tab tab-active" id="tab-config" onclick="switchTab('config')">
+      <span class="tab-ico">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </span>
+      Konfiguracja API
+    </button>
+    <button class="tab" id="tab-transactions" onclick="switchTab('transactions')">
+      <span class="tab-ico">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+        </svg>
+      </span>
+      Transakcje bankowe
+    </button>
+    <button class="tab" id="tab-results" onclick="switchTab('results')">
+      <span class="tab-ico">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+      </span>
+      Wyniki
+      <span class="tab-badge" id="resultsBadge"></span>
+    </button>
+  </div>
+
+  <!-- Panel: Konfiguracja -->
+  <div class="tab-panel active" id="panel-config">
+    <div class="section-label">Klucze API</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px">
+
+      <div class="api-key-card">
+        <div class="api-key-header">
+          <div class="api-key-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="api-key-title">Jina AI — Embeddingi</div>
+            <div class="api-key-desc">Semantyczna kategoryzacja transakcji</div>
+          </div>
+        </div>
+        <input type="password" id="jinaKey" placeholder="jina_..." autocomplete="off">
+      </div>
+
+      <div class="api-key-card">
+        <div class="api-key-header">
+          <div class="api-key-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="api-key-title">Anthropic — Claude</div>
+            <div class="api-key-desc">Normalizacja opisów i wyciąganie kwot</div>
+          </div>
+        </div>
+        <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
+      </div>
+
+    </div>
+
+    <div class="section-label">Model Claude</div>
+    <input type="hidden" id="model" value="claude-haiku-4-5">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:24px">
+      <button class="model-btn active" onclick="selectModel(this,'claude-haiku-4-5')">
+        <span style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Haiku 4.5
+        </span>
+        <span class="model-tag">szybki · tani</span>
+      </button>
+      <button class="model-btn" onclick="selectModel(this,'claude-sonnet-4-6')">
+        <span style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Sonnet 4.6
+        </span>
+        <span class="model-tag">lepszy</span>
+      </button>
+      <button class="model-btn" onclick="selectModel(this,'claude-opus-4-8')">
+        <span style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Opus 4.8
+        </span>
+        <span class="model-tag">najlepszy</span>
+      </button>
+    </div>
+
+    <div class="section-label">Własne kategorie</div>
+    <div>
+      <label for="categories" style="font-size:0.78rem;color:var(--text3)">Opcjonalne — jedna na linię. Zostaw puste dla domyślnej taksonomii.</label>
+      <textarea id="categories" rows="3" placeholder="Żywność&#10;Transport&#10;Dom&#10;Zdrowie" style="margin-top:8px"></textarea>
+    </div>
+    <div style="margin-top:22px">
+      <button class="btn-primary" onclick="switchTab('transactions')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Dalej — Transakcje
+      </button>
+    </div>
+  </div>
+
+  <!-- Panel: Transakcje -->
+  <div class="tab-panel" id="panel-transactions">
+    <div class="section-label">Wklej historię transakcji</div>
+    <label for="transactions" style="font-size:0.8rem;color:var(--text3);margin-bottom:10px;display:block">
+      Kopiuj bezpośrednio z banku — wieloliniowe wpisy grupowane są automatycznie po wykryciu daty
+    </label>
+    <textarea id="transactions" rows="16"
+      placeholder="2024-01-03  BIEDRONKA  -45,20 PLN&#10;2024-01-04  PKO BP PRZELEW WYNAGRODZENIE  +5 000,00 PLN&#10;2024-01-05  NETFLIX  -49,99 PLN&#10;2024-01-06  STARBUCKS COFFEE  -18,50 PLN&#10;2024-01-07  ALLEGRO  -132,00 PLN"
+      style="margin-bottom:20px;font-family:monospace;font-size:0.82rem"></textarea>
+    <div class="btn-row">
+      <button class="btn-primary" id="categorizeBtn" onclick="categorize()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Klasyfikuj transakcje
+      </button>
+      <button class="btn-ghost" onclick="clearResults()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Wyczyść
+      </button>
+      <span class="status" id="status"></span>
+    </div>
+    <div id="errorBox" style="display:none;margin-top:14px"></div>
+  </div>
+
+  <!-- Panel: Wyniki -->
+  <div class="tab-panel" id="panel-results">
+    <div id="results">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:16px;opacity:0.4">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="1.2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <p style="color:var(--text3);font-size:0.88rem">Wklej transakcje i kliknij „Klasyfikuj"</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const DATE_RE = /^(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{2,4}|\d{4}[\.\-\/]\d{1,2}[\.\-\/]\d{1,2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-\.]\d{1,2}|\d{1,2}[\s\-\.](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*)/i;
+
+function groupTransactions(text) {
+  const lines = text.split('\n');
+  const groups = [];
+  let current = null;
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (!line.trim()) continue;
+    if (DATE_RE.test(line.trim())) {
+      if (current !== null) groups.push(current);
+      current = line;
+    } else {
+      current = current === null ? line : current + ' ' + line.trim();
+    }
+  }
+  if (current !== null) groups.push(current);
+  return groups.length ? groups : lines.filter(l => l.trim());
+}
+
+function setStatus(msg) { document.getElementById('status').innerHTML = msg; }
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('tab-active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function selectModel(btn, value) {
+  document.getElementById('model').value = value;
+  document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function showError(msg)  { const b = document.getElementById('errorBox'); b.innerHTML = `<div class="error-box">${msg}</div>`; b.style.display = 'block'; }
+function clearError()    { document.getElementById('errorBox').style.display = 'none'; }
+function clearResults()  {
+  document.getElementById('results').innerHTML = '<p style="color:var(--text3);font-size:0.9rem">Najpierw wklej transakcje i kliknij „Klasyfikuj".</p>';
+  const badge = document.getElementById('resultsBadge');
+  badge.textContent = ''; badge.classList.remove('visible');
+  clearError(); setStatus('');
+}
+const dots = () => `<span class="thinking-dot">●</span><span class="thinking-dot" style="animation-delay:.3s">●</span><span class="thinking-dot" style="animation-delay:.6s">●</span>`;
+
+// ── Taksonomia ────────────────────────────────────────────────────────────────
+const DEFAULT_TAXONOMY = {
+  'Żywność':        ['Zakupy spożywcze','Jedzenie na mieście','Kawa / herbata','Zamówienia z dowozem','Alkohol'],
+  'Dom':            ['Czynsz','Media','Internet / telefon','Wyposażenie domu','Naprawy / serwis','Chemia domowa'],
+  'Transport':      ['Paliwo','Komunikacja miejska','Taxi / ride-hailing','Parking','Serwis auta','Bilety kolejowe / autobusowe'],
+  'Zdrowie':        ['Apteka','Lekarz','Stomatolog','Badania','Suplementy','Ubezpieczenie zdrowotne'],
+  'Rozrywka':       ['Kino / teatr','Gry','Streaming','Wyjścia / eventy','Hobby'],
+  'Zakupy':         ['Odzież','Obuwie','Elektronika','Prezenty','Kosmetyki','Inne zakupy'],
+  'Subskrypcje':    ['Streaming video','Muzyka','Oprogramowanie','Cloud / storage','AI tools','Inne subskrypcje'],
+  'Edukacja':       ['Kursy online','Książki','Studia / szkoła','Materiały szkoleniowe'],
+  'Praca':          ['Dojazdy służbowe','Sprzęt do pracy','Usługi związane z firmą','Reprezentacja','Szkolenia zawodowe'],
+  'Inne':           ['Opłaty bankowe','Podatki / urzędowe','Darowizny','Pożyczki / raty','Nieznane'],
+};
+
+function getCustomL1() {
+  return document.getElementById('categories').value.trim().split('\n').map(s=>s.trim()).filter(Boolean);
+}
+
+function buildLabels() {
+  const customL1 = getCustomL1();
+  const taxonomy = customL1.length
+    ? Object.fromEntries(customL1.map(g => [g, []]))
+    : DEFAULT_TAXONOMY;
+  const labels = [];
+  const EXAMPLES = {
+    'Zakupy spożywcze':             'zakupy w sklepie spożywczym, supermarket, biedronka, lidl, żabka, artykuły spożywcze',
+    'Jedzenie na mieście':          'restauracja, bar, obiad na mieście, kolacja, fast food, mcdonalds, kebab',
+    'Kawa / herbata':               'kawiarnia, starbucks, coffee, kawa na wynos',
+    'Zamówienia z dowozem':         'zamówienie jedzenia online, dostawa jedzenia, pyszne.pl, glovo, wolt, uber eats, zamowposilek',
+    'Alkohol':                      'sklep monopolowy, alkohol, piwo, wino',
+    'Czynsz':                       'czynsz, najem mieszkania, wynajem lokalu, opłata do spółdzielni mieszkaniowej, wspólnota mieszkaniowa, administracja budynku, opłata za lokal, opłata eksploatacyjna, fundusz remontowy',
+    'Media':                        'prąd, gaz, woda, energia elektryczna, tauron, pge, enea, opłata za gospodarowanie odpadami, śmieci, wywóz odpadów, ogrzewanie, ciepło, centralne ogrzewanie, opłata za wodę i ścieki',
+    'Internet / telefon':           'abonament telefoniczny, internet, play, orange, t-mobile, plus, komórka',
+    'Wyposażenie domu':             'meble, sprzęt domowy, ikea, wyposażenie mieszkania, agd',
+    'Naprawy / serwis':             'naprawa, serwis techniczny, hydraulik, elektryk',
+    'Chemia domowa':                'środki czystości, detergenty, drogeria, chemia gospodarcza',
+    'Paliwo':                       'stacja benzynowa, paliwo, benzyna, diesel, orlen, bp, shell',
+    'Komunikacja miejska':          'bilet miejski, metro, tramwaj, autobus, ztm, mpk',
+    'Taxi / ride-hailing':          'taxi, uber, bolt, przejazd taksówką, cab',
+    'Parking':                      'opłata za parking, parkomat, parking miejski',
+    'Serwis auta':                  'mechanik, serwis samochodowy, warsztat, wymiana opon',
+    'Bilety kolejowe / autobusowe': 'bilet pkp, intercity, flixbus, polskibus, pociąg, autobus dalekobieżny',
+    'Apteka':                       'apteka, leki, tabletki, farmacja',
+    'Lekarz':                       'wizyta lekarska, przychodnia, klinika, konsultacja medyczna',
+    'Stomatolog':                   'dentysta, stomatolog, leczenie zębów',
+    'Badania':                      'badania laboratoryjne, morfologia, analityka medyczna, diagnostyka',
+    'Suplementy':                   'suplementy diety, witaminy, odżywki',
+    'Ubezpieczenie zdrowotne':      'ubezpieczenie zdrowotne, składka nfz, prywatne ubezpieczenie',
+    'Kino / teatr':                 'bilet do kina, teatr, opera, spektakl, cinema city, multikino',
+    'Gry':                          'gra komputerowa, steam, playstation, xbox, nintendo, gry wideo',
+    'Streaming':                    'netflix, disney+, hbo max, apple tv, vod, filmy online',
+    'Wyjścia / eventy':             'koncert, event, impreza, klub, bilety na event',
+    'Hobby':                        'sport, hobby, sprzęt sportowy, siłownia, basen, fitness',
+    'Odzież':                       'sklep odzieżowy, ubrania, kurtka, spodnie, zara, h&m, reserved',
+    'Obuwie':                       'buty, sklep obuwniczy, adidas, nike, reebok',
+    'Elektronika':                  'elektronika użytkowa, smartfon, laptop, tablet, sprzęt komputerowy, rtv, euro agd, media expert',
+    'Prezenty':                     'prezent, gift card, podarunek, urodziny',
+    'Kosmetyki':                    'kosmetyki, perfumy, makijaż, rossmann, sephora, hebe, drogeria',
+    'Inne zakupy':                  'zakupy różne, sklep internetowy, allegro, amazon, zakup online',
+    'Streaming video':              'netflix, disney+, hbo, canal+, abonament wideo',
+    'Muzyka':                       'spotify, tidal, apple music, abonament muzyczny',
+    'Oprogramowanie':               'licencja oprogramowania, adobe, microsoft 365, antywirus, software',
+    'Cloud / storage':              'google drive, dropbox, icloud, dysk w chmurze',
+    'AI tools':                     'chatgpt, claude, midjourney, openai, narzędzia ai',
+    'Inne subskrypcje':             'subskrypcja, abonament miesięczny, prenumerata',
+    'Kursy online':                 'kurs online, udemy, coursera, szkolenie, e-learning',
+    'Książki':                      'księgarnia, empik, książka, audiobook, kindle',
+    'Studia / szkoła':              'czesne, szkoła, uczelnia, opłata edukacyjna',
+    'Materiały szkoleniowe':        'materiały edukacyjne, podręcznik, artykuły biurowe',
+    'Dojazdy służbowe':             'podróż służbowa, bilet służbowy, hotel w delegacji',
+    'Sprzęt do pracy':              'sprzęt biurowy, monitor, klawiatura, mysz, akcesoria do pracy',
+    'Usługi związane z firmą':      'usługi dla firmy, księgowość, prawnik, faktura',
+    'Reprezentacja':                'lunch biznesowy, spotkanie z klientem, restauracja służbowa',
+    'Szkolenia zawodowe':           'szkolenie zawodowe, konferencja branżowa, certyfikat',
+    'Opłaty bankowe':               'prowizja bankowa, opłata za konto, przelew bankowy',
+    'Podatki / urzędowe':           'podatek, urząd skarbowy, pit, vat, zus, opłata urzędowa',
+    'Darowizny':                    'darowizna, wpłata charytatywna, zbiórka',
+    'Pożyczki / raty':              'rata kredytu, pożyczka, spłata długu, leasing',
+    'Nieznane':                     'nieznana transakcja, brak opisu, niezidentyfikowane',
+  };
+  for (const [g, subs] of Object.entries(taxonomy)) {
+    if (subs.length) subs.forEach(s => {
+      const ex = EXAMPLES[s] ? ` — ${EXAMPLES[s]}` : '';
+      labels.push({ group: g, subcategory: s, text: `${s} (${g})${ex}` });
+    });
+    else labels.push({ group: g, subcategory: g, text: g });
+  }
+  return labels;
+}
+
+// ── Jina embeddings ───────────────────────────────────────────────────────────
+function cosineSim(a, b) {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i]*b[i]; na += a[i]*a[i]; nb += b[i]*b[i]; }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-10);
+}
+
+async function jinaEmbed(texts) {
+  const jinaKey = document.getElementById('jinaKey').value.trim();
+  if (!jinaKey) throw new Error('Wprowadź klucz API Jina AI.');
+  const resp = await fetch('https://api.jina.ai/v1/embeddings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jinaKey}` },
+    body: JSON.stringify({ model: 'jina-embeddings-v3', input: texts, task: 'text-matching' }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || data.message || `Błąd Jina API ${resp.status}`);
+  return data.data.sort((a,b) => a.index - b.index).map(d => d.embedding);
+}
+
+// ── Krok 1: Claude — normalizacja surowych opisów ────────────────────────────
+async function claudeNormalize(grouped) {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) throw new Error('Wprowadź klucz API Anthropic.');
+  const model = document.getElementById('model').value;
+
+  const lines = grouped.map((t,i) => `${i+1}. ${t}`).join('\n');
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: model.includes('opus') ? 32000 : model.includes('sonnet') ? 16000 : 8192,
+      system: `Jesteś normalizatorem transakcji bankowych. Dla każdej transakcji:
+1. Przetwórz chaotyczny opis bankowy na czysty naturalny tekst polski (1-2 zdania): usuń kody/numery referencyjne/znaki specjalne/daty/kwoty, wyciągnij nazwę merchanta i typ zakupu. Jeśli nie da się określić: "Nieznana transakcja".
+2. Określ przepływ: "przychód" (wynagrodzenie, zwrot, wpływ) lub "wydatek" (zakup, opłata, wypłata).
+3. Wyodrębnij kwotę jako liczbę bez symbolu waluty, lub null.
+4. Podaj nazwę konkretnego sklepu/usługodawcy/marki (np. "Biedronka", "Netflix", "PKP Intercity", "Orlen") lub null jeśli nie da się określić.
+
+Przykłady:
+"UL忠.88342 *Netflix* 40,00 PLN" → opis: "Subskrypcja Netflix", sklep: "Netflix"
+"Uber Trip #12345 24,90 PLN" → opis: "Przejazd Uber", sklep: "Uber"
+"BLIK 00123 BIEDRONKA 2024-01-03" → opis: "Zakupy w Biedronce", sklep: "Biedronka"
+"PRZELEW WYCHODZĄCY REF/001/XYZ CZYNSZ STYCZEN" → opis: "Przelew czynszu za styczeń", sklep: null
+
+Zwróć tylko: [{"i":nr,"opis":"...","przepływ":"przychód|wydatek","kwota":liczba|null,"sklep":tekst|null},...]`,
+      messages: [{ role: 'user', content: `Transakcje:\n${lines}` }],
+    }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error?.message || `Błąd API ${resp.status}`);
+  const textBlock = data.content?.find(b => b.type === 'text');
+  if (!textBlock) throw new Error('Brak odpowiedzi od Claude.');
+  const clean = textBlock.text.replace(/^```[a-z]*\n?/i,'').replace(/\n?```$/,'').trim();
+  let enriched;
+  try {
+    enriched = JSON.parse(clean);
+  } catch(e) {
+    const reason = data.stop_reason === 'max_tokens' ? ' (odpowiedź ucięta — zbyt wiele transakcji naraz, spróbuj podzielić na mniejsze partie)' : '';
+    throw new Error('Claude zwrócił nieprawidłowy JSON' + reason);
+  }
+  const byIdx = {};
+  for (const e of enriched) byIdx[e.i] = e;
+  return grouped.map((tx, i) => {
+    const e = byIdx[i+1] || {};
+    return {
+      original:    tx,
+      description: e.opis || tx,
+      flow:        e.przepływ === 'przychód' ? 'income' : 'outcome',
+      amount:      e.kwota ?? null,
+      merchant:    e.sklep ?? null,
+    };
+  });
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+async function categorize() {
+  clearError();
+  const txText = document.getElementById('transactions').value.trim();
+  if (!txText) { showError('Wklej transakcje do pola tekstowego.'); return; }
+  const grouped = groupTransactions(txText);
+  if (!grouped.length) { showError('Nie znaleziono transakcji.'); return; }
+
+  const btn = document.getElementById('categorizeBtn');
+  btn.disabled = true;
+  try {
+    // Krok 1: Claude — normalizacja surowych opisów
+    setStatus(`${dots()} Claude normalizuje ${grouped.length} opisów…`);
+    const normalized = await claudeNormalize(grouped);
+
+    // Krok 2: Jina — kategoryzacja przez embeddingi znormalizowanych opisów
+    const labels = buildLabels();
+    setStatus(`${dots()} Jina osadza ${labels.length} etykiety kategorii…`);
+    const labelEmbeds = await jinaEmbed(labels.map(l => l.text));
+
+    setStatus(`${dots()} Jina osadza ${normalized.length} opisów…`);
+    const txEmbeds = await jinaEmbed(normalized.map(t => t.description));
+
+    const txs = normalized.map((t, i) => {
+      let best = -1, bestIdx = 0;
+      for (let j = 0; j < labelEmbeds.length; j++) {
+        const sim = cosineSim(txEmbeds[i], labelEmbeds[j]);
+        if (sim > best) { best = sim; bestIdx = j; }
+      }
+      return {
+        ...t,
+        group:       labels[bestIdx].group,
+        subcategory: labels[bestIdx].subcategory,
+        confidence:  Math.round(best * 100),
+      };
+    });
+
+    renderResults(txs);
+    setStatus(`Gotowe — ${txs.length} transakcj${txs.length===1?'a':'i'} sklasyfikowanych.`);
+  } catch(err) {
+    showError('Błąd: ' + err.message);
+    setStatus('');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+function parseMonthKey(str) {
+  if (!str) return null;
+  // YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+  let m = str.match(/(\d{4})[\.\-\/](\d{1,2})[\.\-\/]\d{1,2}/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}`;
+  // DD-MM-YYYY or DD.MM.YYYY
+  m = str.match(/(\d{1,2})[\.\-\/](\d{1,2})[\.\-\/](\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}`;
+  return null;
+}
+
+const PL_MONTHS = ['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paź','Lis','Gru'];
+
+function renderResults(txs) {
+  const income  = txs.filter(t => t.flow === 'income');
+  const outcome = txs.filter(t => t.flow === 'outcome');
+  const sumAmt  = arr => arr.reduce((s,t) => s + (t.amount ?? 0), 0);
+  const incomeTotal  = sumAmt(income);
+  const outcomeTotal = sumAmt(outcome);
+  const net = incomeTotal - outcomeTotal;
+  const hasAmounts = txs.some(t => t.amount != null);
+  const fmt  = n => n.toLocaleString('pl-PL', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmtA = n => hasAmounts ? fmt(n) : '—';
+  const sign = flow => flow === 'income' ? '+' : '−';
+
+  // ── Metric cards ─────────────────────────────────────────────────
+  const icoIn  = `<svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
+  const icoOut = `<svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-linecap="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`;
+  const icoBal = `<svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+  const metricsHtml = `<div class="metrics">
+    <div class="metric income">
+      ${icoIn}
+      <div class="metric-label">Przychody</div>
+      <div class="metric-value">${income.length}<span style="font-size:1rem;font-weight:400;opacity:.5;margin-left:4px">trans.</span></div>
+      ${hasAmounts ? `<div class="metric-sub">+${fmtA(incomeTotal)} PLN</div>` : ''}
+    </div>
+    <div class="metric outcome">
+      ${icoOut}
+      <div class="metric-label">Wydatki</div>
+      <div class="metric-value">${outcome.length}<span style="font-size:1rem;font-weight:400;opacity:.5;margin-left:4px">trans.</span></div>
+      ${hasAmounts ? `<div class="metric-sub">−${fmtA(outcomeTotal)} PLN</div>` : ''}
+    </div>
+    <div class="metric balance">
+      ${icoBal}
+      <div class="metric-label">Bilans</div>
+      <div class="metric-value">${hasAmounts ? (net>=0?'+':'')+fmt(net) : txs.length}<span style="font-size:1rem;font-weight:400;opacity:.5;margin-left:4px">${hasAmounts?'PLN':'łącznie'}</span></div>
+      <div class="metric-sub">${txs.length} transakcji łącznie</div>
+    </div>
+  </div>`;
+
+  // ── Monthly breakdown ─────────────────────────────────────────────
+  const monthlyHtml = (() => {
+    if (!hasAmounts) return '';
+    const byMonth = {};
+    for (const t of txs) {
+      const key = parseMonthKey(t.original);
+      if (!key) continue;
+      if (!byMonth[key]) byMonth[key] = { income: 0, outcome: 0, count: 0 };
+      byMonth[key].count++;
+      if (t.flow === 'income') byMonth[key].income += t.amount ?? 0;
+      else byMonth[key].outcome += t.amount ?? 0;
+    }
+    const months = Object.keys(byMonth).sort();
+    if (months.length === 0) return '';
+
+    const outcomes = months.map(k => byMonth[k].outcome);
+    const totalOut = outcomes.reduce((a,b) => a+b, 0);
+    const totalIn  = months.map(k => byMonth[k].income).reduce((a,b) => a+b, 0);
+    const avg      = totalOut / months.length;
+
+    const th = txt => `<th style="padding:9px 14px;font-size:0.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">${txt}</th>`;
+    const thL = txt => `<th style="padding:9px 14px;font-size:0.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);text-align:left">${txt}</th>`;
+
+    const rows = months.map(key => {
+      const d = byMonth[key];
+      const [yr, mo] = key.split('-');
+      const label = PL_MONTHS[parseInt(mo,10)-1] + ' ' + yr;
+      const delta = d.outcome - avg;
+      const deltaSign = delta > 0 ? '▲' : '▼';
+      const deltaCol = delta > 0 ? 'var(--red)' : 'var(--green)';
+      const deltaPct = avg > 0 ? Math.round(Math.abs(delta) / avg * 100) : 0;
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:10px 14px;font-weight:600;color:var(--text);white-space:nowrap">${label}</td>
+        <td style="padding:10px 14px;color:var(--red);font-weight:700;text-align:right">−${fmt(d.outcome)}</td>
+        <td style="padding:10px 14px;color:var(--green);font-weight:600;text-align:right">${d.income>0?'+'+fmt(d.income):'—'}</td>
+        <td style="padding:10px 14px;text-align:right;color:var(--text2)">${d.count}</td>
+        <td style="padding:10px 14px;text-align:right;font-size:0.8rem;font-weight:600;color:${deltaCol};white-space:nowrap">${deltaSign} ${deltaPct}%</td>
+      </tr>`;
+    }).join('');
+
+    return `<div style="margin-bottom:16px">
+      <div style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">Wydatki miesięczne</div>
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+        <thead><tr>
+          ${thL('Miesiąc')}${th('Wydatki')}${th('Przychody')}${th('Trans.')}${th('vs średnia')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr style="border-top:2px solid var(--border2)">
+            <td style="padding:10px 14px;font-weight:700;color:var(--text)">Suma</td>
+            <td style="padding:10px 14px;font-weight:700;color:var(--red);text-align:right">−${fmt(totalOut)}</td>
+            <td style="padding:10px 14px;font-weight:600;color:var(--green);text-align:right">${totalIn>0?'+'+fmt(totalIn):'—'}</td>
+            <td style="padding:10px 14px;color:var(--text3);text-align:right">${txs.length}</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td style="padding:6px 14px;color:var(--text3);font-size:0.82rem">Średnia / miesiąc</td>
+            <td style="padding:6px 14px;color:var(--accent2);font-weight:700;text-align:right">−${fmt(avg)}</td>
+            <td colspan="3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+  })();
+
+  // ── Two-level breakdown ───────────────────────────────────────────
+  const buildGroups = arr => {
+    const map = {};
+    for (const t of arr) {
+      const g = t.group || 'Inne';
+      const c = t.subcategory || '—';
+      if (!map[g]) map[g] = { count:0, amount:0, cats:{} };
+      map[g].count++;
+      map[g].amount += t.amount ?? 0;
+      if (!map[g].cats[c]) map[g].cats[c] = { count:0, amount:0 };
+      map[g].cats[c].count++;
+      map[g].cats[c].amount += t.amount ?? 0;
+    }
+    return map;
+  };
+
+  const renderBreakdown = (arr, colorVar, flow) => {
+    const groups = buildGroups(arr);
+    return Object.entries(groups)
+      .sort((a,b) => (b[1].amount - a[1].amount) || (b[1].count - a[1].count))
+      .map(([g, gd]) => {
+        const catRows = Object.entries(gd.cats)
+          .sort((a,b) => (b[1].amount - a[1].amount) || (b[1].count - a[1].count))
+          .map(([c, cd]) => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px 6px 20px;border-bottom:1px solid var(--border)">
+              <span style="font-size:0.82rem;color:var(--text)">${esc(c)}</span>
+              <span style="display:flex;gap:12px;flex-shrink:0;align-items:center">
+                <span style="font-size:0.75rem;color:var(--text3)">${cd.count} trans.</span>
+                ${hasAmounts&&cd.amount?`<span style="font-size:0.82rem;font-weight:600;color:${colorVar};min-width:80px;text-align:right">${sign(flow)}${fmt(cd.amount)}</span>`:''}
+              </span>
+            </div>`).join('');
+        return `<div style="margin-bottom:8px;border:1px solid ${colorVar}28;border-radius:10px;overflow:hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;background:${colorVar}12;padding:9px 12px">
+            <span style="font-size:0.83rem;font-weight:700;color:${colorVar};display:flex;align-items:center;gap:7px">
+              <span style="width:5px;height:5px;border-radius:50%;background:${colorVar};display:inline-block"></span>${esc(g)}
+            </span>
+            <span style="display:flex;gap:12px;flex-shrink:0;align-items:center">
+              <span style="font-size:0.75rem;color:var(--text3)">${gd.count} trans.</span>
+              ${hasAmounts&&gd.amount?`<span style="font-size:0.83rem;font-weight:700;color:${colorVar};min-width:80px;text-align:right">${sign(flow)}${fmt(gd.amount)}</span>`:''}
+            </span>
+          </div>${catRows}</div>`;
+      }).join('');
+  };
+
+  const breakdownHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px">
+    <div style="background:var(--green-bg);border:1px solid var(--green-b);border-radius:14px;padding:18px">
+      <div style="font-size:0.7rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">Przychody — szczegóły</div>
+      ${income.length ? renderBreakdown(income,'var(--green)','income') : `<span style="color:var(--text3);font-size:0.85rem">Brak przychodów</span>`}
+    </div>
+    <div style="background:var(--red-bg);border:1px solid var(--red-b);border-radius:14px;padding:18px">
+      <div style="font-size:0.7rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">Wydatki — szczegóły</div>
+      ${outcome.length ? renderBreakdown(outcome,'var(--red)','outcome') : `<span style="color:var(--text3);font-size:0.85rem">Brak wydatków</span>`}
+    </div>
+  </div>`;
+
+  // ── Transaction table ─────────────────────────────────────────────
+  // ── Confidence info ───────────────────────────────────────────────
+  const avgConf = txs.length ? Math.round(txs.reduce((s,t) => s + (t.confidence??0), 0) / txs.length) : 0;
+  const confColor = avgConf >= 70 ? 'var(--green)' : avgConf >= 50 ? 'var(--accent2)' : 'var(--red)';
+  const confInfoHtml = `<details style="margin-bottom:16px">
+    <summary style="cursor:pointer;font-size:0.78rem;color:var(--text3);user-select:none;list-style:none">
+      ℹ️ Średnia pewność kategoryzacji: <strong style="color:${confColor}">${avgConf}%</strong> — kliknij aby dowiedzieć się dlaczego może być niska
+    </summary>
+    <div style="margin-top:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;padding:16px;font-size:0.83rem;line-height:1.7;color:var(--text2)">
+      <p style="margin-bottom:10px"><strong style="color:var(--text)">Dlaczego pewność jest niska?</strong></p>
+      <p style="margin-bottom:8px">Pewność to podobieństwo cosinusowe między embeddingiem opisu transakcji a embeddingiem etykiety kategorii. Wartości 55–75% są normalne — to nie jest błąd, lecz cecha przestrzeni embeddingów:</p>
+      <ul style="margin-left:16px;margin-bottom:12px">
+        <li>Podobieństwo między <em>dowolnymi</em> sensownymi tekstami rzadko spada poniżej 0.5 w modelu Jina</li>
+        <li>Etykiety kategorii to krótkie frazy, a opisy transakcji to zdania — różna długość = niższe podobieństwo</li>
+        <li>Kilka kategorii może być semantycznie blisko siebie (np. „Streaming" vs „Subskrypcje")</li>
+      </ul>
+      <p style="margin-bottom:8px"><strong style="color:var(--text)">Co zrobić żeby zwiększyć pewność?</strong></p>
+      <ul style="margin-left:16px">
+        <li>✅ <strong>Własne grupy</strong> — im mniej kategorii, tym mniej konkurencji między nimi i wyższa pewność</li>
+        <li>✅ <strong>Konkretniejsze nazwy kategorii</strong> — zamiast „Inne zakupy" użyj „Allegro / zakupy online"</li>
+        <li>✅ <strong>Mniej podobnych do siebie kategorii</strong> — np. osobne „Streaming video" i „Muzyka" konflikują; połącz je w „Subskrypcje cyfrowe"</li>
+        <li>⚡ <strong>Docelowo</strong>: kategoryzację można przenieść w całości do Claude — wtedy pewność zastąpi bardziej precyzyjne rozumowanie językowe</li>
+      </ul>
+    </div>
+  </details>`;
+
+  // ── Transaction table ─────────────────────────────────────────────
+  // helpers dla wierszy transakcji
+  const txRow = (t, showCat) => {
+    const conf = Math.max(0, Math.min(100, t.confidence ?? 0));
+    const isIncome = t.flow === 'income';
+    const clrVar = isIncome ? 'var(--green)' : 'var(--red)';
+    const amtClass = isIncome ? 'amount-in' : 'amount-out';
+    const flowLabel = isIncome ? 'przychód' : 'wydatek';
+    const dot = `<span title="${flowLabel}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${clrVar};box-shadow:0 0 6px ${clrVar}80;flex-shrink:0"></span>`;
+    const amt = t.amount != null
+      ? `<span class="${amtClass}">${isIncome?'+':'−'}${Number(t.amount).toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`
+      : '';
+    const merchantBadge = t.merchant
+      ? `<span class="badge badge-merchant">${esc(t.merchant)}</span>`
+      : `<span style="color:var(--text3);font-size:0.78rem">—</span>`;
+    const barColor = conf >= 70 ? 'linear-gradient(90deg,var(--gold),var(--gold3))' : conf >= 50 ? 'linear-gradient(90deg,var(--gold-b),var(--gold))' : 'linear-gradient(90deg,var(--red),#c0392b)';
+    const catCols = showCat ? `
+      <td><span class="badge badge-group">${esc(t.group||'—')}</span></td>
+      <td><span class="badge badge-sub">${esc(t.subcategory||'—')}</span></td>` : '';
+    return `<tr>
+      <td style="text-align:center">${dot}</td>
+      <td style="font-family:monospace;font-size:0.78rem;color:var(--text2);max-width:180px">${esc(t.original)}${amt?'<br>'+amt:''}</td>
+      <td style="color:var(--text);font-size:0.85rem">${esc(t.description)}</td>
+      ${catCols}
+      <td>${merchantBadge}</td>
+      <td><div class="bar-wrap">
+        <div class="bar-bg"><div class="bar-fill" style="width:${conf}%;background:${barColor}"></div></div>
+        <span class="bar-pct" style="color:${conf>=70?'var(--green)':conf>=50?'var(--accent2)':'var(--red)'}">${conf}%</span>
+      </div></td>
+    </tr>`;
+  };
+
+  // ── Tabela pogrupowana wg kategorii ──────────────────────────────
+  const grouped_cats = {};
+  for (const t of txs) {
+    const key = (t.group||'Inne') + '|||' + (t.subcategory||'—');
+    if (!grouped_cats[key]) grouped_cats[key] = [];
+    grouped_cats[key].push(t);
+  }
+  const sortedKeys = Object.keys(grouped_cats).sort();
+
+  let groupedBody = '';
+  for (const key of sortedKeys) {
+    const [grp, sub] = key.split('|||');
+    const rows = grouped_cats[key];
+    const subSum = rows.reduce((s,t) => s + (t.amount??0), 0);
+    const hasAmt = rows.some(t => t.amount != null);
+    const isInc = rows[0]?.flow === 'income';
+    groupedBody += `<tr style="background:var(--bg3)">
+      <td colspan="2" style="padding:8px 12px">
+        <span class="badge badge-group" style="margin-right:6px">${esc(grp)}</span>
+        <span class="badge badge-sub">${esc(sub)}</span>
+      </td>
+      <td style="padding:8px 12px;color:var(--text3);font-size:0.78rem">${rows.length} trans.</td>
+      <td style="padding:8px 12px;font-weight:700;font-size:0.85rem;color:${isInc?'var(--green)':'var(--red)'};text-align:right">
+        ${hasAmt?(isInc?'+':'−')+fmt(subSum):''}
+      </td>
+      <td colspan="3"></td>
+    </tr>`;
+    for (const t of rows) groupedBody += txRow(t, false);
+  }
+
+  const groupedTable = `
+  <div style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">Transakcje wg kategorii</div>
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:24px">
+    <thead><tr>
+      <th style="width:18px"></th><th>Oryginał / Kwota</th><th>Opis (Claude)</th>
+      <th>Suma kat.</th><th>Sklep / Marka</th><th style="min-width:100px">Pewność</th><th></th>
+    </tr></thead>
+    <tbody>${groupedBody}</tbody>
+  </table>`;
+
+  // ── Zwinięta płaska lista ─────────────────────────────────────────
+  let flatRows = '';
+  for (const t of txs) flatRows += txRow(t, true);
+
+  const flatTable = `
+  <details style="margin-top:4px">
+    <summary style="cursor:pointer;font-size:0.78rem;color:var(--text3);user-select:none;padding:10px 0;list-style:none;display:flex;align-items:center;gap:8px">
+      <span style="display:inline-block;width:16px;height:16px;border:1.5px solid var(--border2);border-radius:4px;text-align:center;line-height:14px;font-size:0.7rem">▸</span>
+      Pełna lista transakcji (${txs.length})
+    </summary>
+    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:10px">
+      <thead><tr>
+        <th style="width:18px"></th><th>Oryginał / Kwota</th><th>Opis (Claude)</th>
+        <th>Grupa</th><th>Podkategoria</th><th>Sklep / Marka</th><th style="min-width:100px">Pewność</th>
+      </tr></thead>
+      <tbody>${flatRows}</tbody>
+    </table>
+  </details>`;
+
+  let tableHtml = confInfoHtml + groupedTable + flatTable;
+
+  const csvBtn = `<button onclick="downloadCSV()" class="btn-ghost" style="margin-top:16px;font-size:0.8rem;padding:8px 16px">↓ Pobierz CSV</button>`;
+
+  document.getElementById('results').innerHTML = metricsHtml + monthlyHtml + breakdownHtml + tableHtml + csvBtn;
+  const badge = document.getElementById('resultsBadge');
+  badge.textContent = txs.length;
+  badge.classList.add('visible');
+  switchTab('results');
+  window._lastTxs = txs;
+}
+
+function esc(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function downloadCSV() {
+  const txs = window._lastTxs;
+  if (!txs) return;
+  const cols = ['flow','original','description','amount','merchant','group','subcategory','confidence'];
+  const rows = [cols.join(','), ...txs.map(t =>
+    cols.map(c => `"${String(t[c] ?? '').replace(/"/g,'""')}"`).join(',')
+  )];
+  const blob = new Blob([rows.join('\r\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'categorized-transactions.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
